@@ -33,10 +33,11 @@ scan_result=$(timeout 5m sudo tcpdump -i eth0 arp 2>/dev/null)
 found_ips=$(echo "$scan_result" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}')
 
 # Sort the found IP addresses in ascending order
-sorted_ips=$(echo "$found_ips" | sort -n | uniq)
+sorted_ips=$(echo "$found_ips" | sort -u -V)
 
 # Print the sorted IP addresses
 echo -e "\n\e[1mUsed IP addresses:\e[0m"
+
 echo "$sorted_ips"
 
 # Extract the first and last IPs from the sorted list
