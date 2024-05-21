@@ -11,10 +11,14 @@ banner="
                              |_|             
 
             by \e[1;31mIsmail Barrous\e[0m
-               Version: \e[1;31m1.0\e[0m                                                                                                      
+               Version: \e[1;31m2.0\e[0m                                                                                                      
 "
 
 echo -e "$banner"
+
+count_ips() {
+    awk '{ ips[$1]++ } END { for (ip in ips) print ip, ips[ip] }' -
+}
 
 identify_network_ip() {
     local cidr="$1"
@@ -28,9 +32,20 @@ echo -e "\e[1;33mSniffing the network for ARP packets to detect IPs\e[0m"
 echo -e "\n\e[1;33mDuration: 5 Minutes\e[0m"
 
 #scans the network for arp packets for 5 minutes
+
 scan_result=$(timeout 5m sudo tcpdump -i eth0 arp 2>/dev/null)
 
 found_ips=$(echo "$scan_result" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}')
+
+# Check if any IP addresses were found
+if [ -z "$found_ips" ]; then
+    echo "No IP addresses found."
+    exit 1
+fi
+
+# Count occurrences of each IP address
+gateway=$(echo "$found_ips" | count_ips | sort -rn -k2 | head -n1 | awk '{print $1}')
+# Print the most repeated IP address
 
 # Sort the found IP addresses in ascending order
 sorted_ips=$(echo "$found_ips" | sort -u -V)
@@ -53,8 +68,8 @@ ip_list=()
 echo -e "\n\e[1mAvailable IP addresses:\e[0m"
 while [ $j -le $i ]; do
     ip="$prefix.$j"
-    ip_list+=("$ip")
     if ! echo "$sorted_ips" | grep -q "$ip"; then
+    ip_list+=("$ip")
         echo -e "\e[32m$ip\e[0m" # Print available IPs in green color
     fi
     ((j++))
@@ -64,8 +79,9 @@ done
 num_ips=${#ip_list[@]}
 network_cidr=$(echo "32 - l($num_ips)/l(2)" | bc -l)
 network_cidr=$(printf "%.0f" "$network_cidr")
+
 network_ip=$(identify_network_ip $network_cidr "${ip_list[@]}")
 
-gateway=$(sudo netdiscover -P -r "$network_ip/$network_cider" | grep -Ei 'router|gateway|modem|access point|firewall|dhcp|nat|wan|lan|subnet|cisco|tp-link|netgear|d-link|linksys|archer|2900' | awk '{print $1}')
 echo -e "\n\e[1mGateway found:\e[0m \e[32m$gateway\e[0m"
+
 echo -e "\n\e[1mConcluded Network CIDR Based On The Results:\e[0m \e[32m$network_ip/$network_cidr\e[0m"
